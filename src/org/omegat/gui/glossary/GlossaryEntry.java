@@ -40,6 +40,7 @@ import org.omegat.util.StringUtil;
  * @author Keith Godfrey
  * @author Aaron Madlon-Kay
  * @author Alex Buloichik
+ * @author Hanqin Chen
  */
 public class GlossaryEntry implements ITranslationEntry {
     public GlossaryEntry(String src, String[] loc, String[] com, boolean[] fromPriorityGlossary, String[] origins) {
@@ -73,7 +74,7 @@ public class GlossaryEntry implements ITranslationEntry {
 
     /**
      * Return the first target-language term string.
-     *
+     * <p>
      * Glossary entries can have multiple target strings
      * if they have been combined for display purposes.
      * Access all target strings with {@link GlossaryEntry#getLocTerms(boolean)}.
@@ -82,6 +83,14 @@ public class GlossaryEntry implements ITranslationEntry {
      */
     public String getLocText() {
         return mTargets.length > 0 ? mTargets[0] : "";
+    }
+
+    /**
+     * A shortcut to {@link GlossaryEntry#getLocTerms(boolean)}[index]
+     *
+     */
+    public String getLocIndex(int index) {
+        return mTargets.length > index ? mTargets[index] : "";
     }
 
     /**
@@ -95,19 +104,19 @@ public class GlossaryEntry implements ITranslationEntry {
         if (!uniqueOnly || mTargets.length == 1) {
             return mTargets;
         }
-        ArrayList<String> list = new ArrayList<String>();
+        ArrayList<String> list = new ArrayList<>();
         for (int i = 0; i < mTargets.length; i++) {
             if (i > 0 && mTargets[i].equals(mTargets[i - 1])) {
                 continue;
             }
             list.add(mTargets[i]);
         }
-        return list.toArray(new String[list.size()]);
+        return list.toArray(new String[0]);
     }
 
     /**
      * Return the first comment string.
-     *
+     * <p>
      * Glossary entries can have multiple comment strings
      * if they have been combined for display purposes.
      * Access all comment strings with {@link GlossaryEntry#getComments()}.
@@ -118,12 +127,20 @@ public class GlossaryEntry implements ITranslationEntry {
         return mComments.length > 0 ? mComments[0] : "";
     }
 
+    /**
+     * A shortcut to {@link GlossaryEntry#getComments()}[index]
+     *
+     */
+    public String getCommentIndex(int index) {
+        return mComments.length > index ? mComments[index] : "";
+    }
+
     public String[] getComments() {
         return mComments;
     }
 
     public boolean getPriority() {
-        return mPriorities.length > 0 ? mPriorities[0] : false;
+        return mPriorities.length > 0 && mPriorities[0];
     }
 
     public boolean[] getPriorities() {
@@ -135,6 +152,13 @@ public class GlossaryEntry implements ITranslationEntry {
             return mOrigins;
         }
         return Stream.of(mOrigins).distinct().toArray(String[]::new);
+    }
+
+    /**
+     * A shortcut to {@link GlossaryEntry#getOrigins}(false)[index]
+     */
+    public String getOriginIndex(int index) {
+        return mOrigins[index];
     }
 
     @Override
@@ -167,9 +191,9 @@ public class GlossaryEntry implements ITranslationEntry {
         }
     }
 
-    private String mSource;
-    private String[] mTargets;
-    private String[] mComments;
-    private boolean[] mPriorities;
-    private String[] mOrigins;
+    private final String mSource;
+    private final String[] mTargets;
+    private final String[] mComments;
+    private final boolean[] mPriorities;
+    private final String[] mOrigins;
 }

@@ -48,8 +48,6 @@ import org.openide.awt.Mnemonics;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.Transferable;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,7 +73,7 @@ import javax.swing.text.JTextComponent;
  * @author Didier Briel
  * @author Aaron Madlon-Kay
  * @author Thomas Cordonnier
- * @author HanQin Chen
+ * @author Hanqin Chen
  */
 public final class EditorPopups {
     public static void init(EditorController ec) {
@@ -104,7 +102,7 @@ public final class EditorPopups {
         }
 
         public void addItems(JPopupMenu menu, final JTextComponent comp, int mousepos,
-                boolean isInActiveEntry, boolean isInActiveTranslation, SegmentBuilder sb) {
+                             boolean isInActiveEntry, boolean isInActiveTranslation, SegmentBuilder sb) {
             if (!ec.getSettings().isAutoSpellChecking()) {
                 // spellchecker disabled
                 return;
@@ -117,7 +115,7 @@ public final class EditorPopups {
             // Use the project's target tokenizer to determine the word that was
             // right-clicked.
             // EditorUtils.getWordEnd() and getWordStart() use Java's built-in
-            // BreakIterator under the hood, which leads to inconsistent 
+            // BreakIterator under the hood, which leads to inconsistent
             // results when compared to other spell-checking functionality
             // in OmegaT.
             String translation = ec.getCurrentTranslation();
@@ -148,17 +146,14 @@ public final class EditorPopups {
                 // the suggestions
                 for (final String replacement : suggestions) {
                     JMenuItem item = menu.add(replacement);
-                    item.addActionListener(new ActionListener() {
-                        // the action: replace the word with the selected
-                        // suggestion
-                        public void actionPerformed(ActionEvent e) {
-                            try {
-                                int pos = comp.getCaretPosition();
-                                xlDoc.replace(wordStart, wordLength, replacement, null);
-                                comp.setCaretPosition(pos);
-                            } catch (BadLocationException exc) {
-                                Log.log(exc);
-                            }
+                    // the action: replace the word with the selected suggestion
+                    item.addActionListener(e -> {
+                        try {
+                            int pos = comp.getCaretPosition();
+                            xlDoc.replace(wordStart, wordLength, replacement, null);
+                            comp.setCaretPosition(pos);
+                        } catch (BadLocationException exc) {
+                            Log.log(exc);
                         }
                     });
                 }
@@ -167,10 +162,8 @@ public final class EditorPopups {
                 if (suggestions.isEmpty()) {
                     JMenuItem item = menu
                             .add(Mnemonics.removeMnemonics(OStrings.getString("SC_NO_SUGGESTIONS")));
-                    item.addActionListener(new ActionListener() {
-                        public void actionPerformed(ActionEvent e) {
-                            // just hide the menu
-                        }
+                    item.addActionListener(e -> {
+                        // just hide the menu
                     });
                 }
 
@@ -178,19 +171,11 @@ public final class EditorPopups {
 
                 // let us ignore it
                 JMenuItem item = menu.add(Mnemonics.removeMnemonics(OStrings.getString("SC_IGNORE_ALL")));
-                item.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        addIgnoreWord(word, wordStart, false);
-                    }
-                });
+                item.addActionListener(e -> addIgnoreWord(word, false));
 
                 // or add it to the dictionary
                 item = menu.add(Mnemonics.removeMnemonics(OStrings.getString("SC_ADD_TO_DICTIONARY")));
-                item.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        addIgnoreWord(word, wordStart, true);
-                    }
-                });
+                item.addActionListener(e -> addIgnoreWord(word, true));
 
                 menu.addSeparator();
 
@@ -202,12 +187,10 @@ public final class EditorPopups {
          *
          * @param word
          *            : the word in question
-         * @param offset
-         *            : the offset of the word in the editor
          * @param add
          *            : true for add, false for ignore
          */
-        protected void addIgnoreWord(final String word, final int offset, final boolean add) {
+        protected void addIgnoreWord(final String word, final boolean add) {
             UIThreadsUtil.mustBeSwingThread();
 
             if (add) {
@@ -252,11 +235,7 @@ public final class EditorPopups {
             // Cut
             JMenuItem cutContextItem = menu.add(Mnemonics.removeMnemonics(OStrings.getString("CCP_CUT")));
             if (cutEnabled) {
-                cutContextItem.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        comp.cut();
-                    }
-                });
+                cutContextItem.addActionListener(e -> comp.cut());
             } else {
                 cutContextItem.setEnabled(false);
             }
@@ -264,11 +243,7 @@ public final class EditorPopups {
             // Copy
             JMenuItem copyContextItem = menu.add(Mnemonics.removeMnemonics(OStrings.getString("CCP_COPY")));
             if (copyEnabled) {
-                copyContextItem.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        comp.copy();
-                    }
-                });
+                copyContextItem.addActionListener(e -> comp.copy());
             } else {
                 copyContextItem.setEnabled(false);
             }
@@ -276,11 +251,7 @@ public final class EditorPopups {
             // Paste
             JMenuItem pasteContextItem = menu.add(Mnemonics.removeMnemonics(OStrings.getString("CCP_PASTE")));
             if (pasteEnabled) {
-                pasteContextItem.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        comp.paste();
-                    }
-                });
+                pasteContextItem.addActionListener(e -> comp.paste());
             } else {
                 pasteContextItem.setEnabled(false);
             }
@@ -316,37 +287,13 @@ public final class EditorPopups {
                 throw new RuntimeException(e);
             }
 
-            // Add glossary entry
-            JMenuItem addGlossaryItem = menu
-                    .add(Mnemonics.removeMnemonics(OStrings.getString("GUI_GLOSSARYWINDOW_addentry")));
-            addGlossaryItem.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    Core.getGlossary()
-                            .showCreateGlossaryEntryDialog(Core.getMainWindow().getApplicationFrame());
-                }
-            });
-
-            // Change writable glossary
+            // Add entry to a specific glossary file
             JMenu submenu = new JMenu(
-                    Mnemonics.removeMnemonics(OStrings.getString("GUI_GLOSSARYWINDOW_changeglossary")));
+                    Mnemonics.removeMnemonics(OStrings.getString("GUI_GLOSSARYWINDOW_addentryto")));
             ButtonGroup group = new ButtonGroup();
 
             for (String s : glossFileName) {
-                JCheckBoxMenuItem item = new JCheckBoxMenuItem(s);
-
-                ProjectProperties props = Core.getProject().getProjectProperties();
-                String writableGlossPath = folder + s;
-                String test = props.getWriteableGlossary();
-                if (writableGlossPath.equals(test)) {
-                    item.setSelected(true);
-                }
-
-                item.addActionListener(new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        props.setWriteableGlossary(writableGlossPath);
-                    }
-                });
+                JCheckBoxMenuItem item = createMenuItem(s, folder);
                 group.add(item);
                 submenu.add(item);
             }
@@ -371,6 +318,23 @@ public final class EditorPopups {
         }
     }
 
+    private static JCheckBoxMenuItem createMenuItem(String s, String folder) {
+        JCheckBoxMenuItem item = new JCheckBoxMenuItem(s);
+
+        ProjectProperties props = Core.getProject().getProjectProperties();
+        String writableGlossPath = folder + s;
+        String test = props.getWriteableGlossary();
+        if (writableGlossPath.equals(test)) {
+            item.setSelected(true);
+        }
+
+        item.addActionListener(e -> {
+            props.setWriteableGlossary(writableGlossPath);
+            Core.getGlossary().showCreateGlossaryEntryDialog(Core.getMainWindow().getApplicationFrame());
+        });
+        return item;
+    }
+
     public static class GoToSegmentPopup implements IPopupMenuConstructor {
         protected final EditorController ec;
 
@@ -390,11 +354,9 @@ public final class EditorPopups {
 
             JMenuItem item = menu
                     .add(Mnemonics.removeMnemonics(OStrings.getString("MW_PROMPT_SEG_NR_TITLE")));
-            item.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    comp.setCaretPosition(mousepos);
-                    ec.goToSegmentAtLocation(comp.getCaretPosition());
-                }
+            item.addActionListener(e -> {
+                comp.setCaretPosition(mousepos);
+                ec.goToSegmentAtLocation(comp.getCaretPosition());
             });
             menu.addSeparator();
         }
@@ -450,23 +412,11 @@ public final class EditorPopups {
             }
 
             menu.add(Mnemonics.removeMnemonics(OStrings.getString("TRANS_POP_EMPTY_TRANSLATION")))
-                    .addActionListener(new ActionListener() {
-                        public void actionPerformed(ActionEvent e) {
-                            ec.registerEmptyTranslation();
-                        }
-                    });
+                    .addActionListener(e -> ec.registerEmptyTranslation());
             menu.add(Mnemonics.removeMnemonics(OStrings.getString("TRANS_POP_REMOVE_TRANSLATION")))
-                    .addActionListener(new ActionListener() {
-                        public void actionPerformed(ActionEvent e) {
-                            ec.registerUntranslated();
-                        }
-                    });
+                    .addActionListener(e -> ec.registerUntranslated());
             menu.add(Mnemonics.removeMnemonics(OStrings.getString("TRANS_POP_IDENTICAL_TRANSLATION")))
-                    .addActionListener(new ActionListener() {
-                        public void actionPerformed(ActionEvent e) {
-                            ec.registerIdenticalTranslation();
-                        }
-                    });
+                    .addActionListener(e -> ec.registerIdenticalTranslation());
             menu.addSeparator();
         }
     }
@@ -487,11 +437,7 @@ public final class EditorPopups {
             for (final Tag tag : TagUtil.getAllTagsMissingFromTarget()) {
                 JMenuItem item = menu.add(StringUtil.format(
                         Mnemonics.removeMnemonics(OStrings.getString("TF_MENU_EDIT_TAG_INSERT_N")), tag.tag));
-                item.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        Core.getEditor().insertTag(tag.tag);
-                    }
-                });
+                item.addActionListener(e -> Core.getEditor().insertTag(tag.tag));
             }
             menu.addSeparator();
         }
@@ -518,12 +464,7 @@ public final class EditorPopups {
             for (int i = 0; i < names.length; i++) {
                 JMenuItem item = new JMenuItem(Mnemonics.removeMnemonics(OStrings.getString(names[i])));
                 final String insertText = inserts[i];
-                item.addActionListener(new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        Core.getEditor().insertText(insertText);
-                    }
-                });
+                item.addActionListener(e -> Core.getEditor().insertText(insertText));
                 submenu.add(item);
             }
             menu.add(submenu);
