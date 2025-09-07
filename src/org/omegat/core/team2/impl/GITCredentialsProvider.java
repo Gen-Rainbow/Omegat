@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 
 import org.eclipse.jgit.errors.UnsupportedCredentialItem;
@@ -49,9 +50,9 @@ import org.omegat.core.KnownException;
 import org.omegat.core.team2.gui.PassphraseDialog;
 import org.omegat.core.team2.gui.UserPassDialog;
 import org.omegat.core.team2.impl.TeamUtils.Credentials;
-import org.omegat.gui.main.IMainWindow;
 import org.omegat.util.Log;
 import org.omegat.util.OStrings;
+import org.omegat.util.gui.StaticUIUtils;
 
 /**
  * Git repository credentials provider. One credential provider created for all
@@ -81,14 +82,14 @@ import org.omegat.util.OStrings;
 
 public class GITCredentialsProvider extends CredentialsProvider {
 
-    private static final Pattern[] fingerPrintRegex = new Pattern[] {
-            Pattern.compile("The authenticity of host '" + /* host */ ".*" + "' can't be established\\.\\n" +
-            /* key_type */ "(RSA|DSA|ECDSA|EDDSA)" + " key fingerprint is " +
-            /* key fprint */ "(?<fingerprint>([0-9a-f]{2}:){15}[0-9a-f]{2})" + "\\.\\n"
+    private static final Pattern[] FINGER_PRINT_REGEX = new Pattern[] {
+            Pattern.compile("The authenticity of host '" + /* host */ ".*" + "' can't be established\\.\\n"
+                    + /* key_type */ "(RSA|DSA|ECDSA|EDDSA)" + " key fingerprint is "
+                    + /* key fprint */ "(?<fingerprint>([0-9a-f]{2}:){15}[0-9a-f]{2})" + "\\.\\n"
                     + "Are you sure you want to continue connecting\\?"),
-            Pattern.compile("The authenticity of host '" + /* host */ ".*" + "' can't be established\\.\\n" +
-            /* key_type */ "(RSA|DSA|ECDSA|EDDSA)" + " key fingerprint is " +
-            /* key fprint */"SHA256:(?<fingerprint>[0-9a-zA-Z/+]+)" + "\\.\\n"
+            Pattern.compile("The authenticity of host '" + /* host */ ".*" + "' can't be established\\.\\n"
+                    + /* key_type */ "(RSA|DSA|ECDSA|EDDSA)" + " key fingerprint is "
+                    + /* key fprint */"SHA256:(?<fingerprint>[0-9a-zA-Z/+]+)" + "\\.\\n"
                     + "Are you sure you want to continue connecting\\?"),
             Pattern.compile("The authenticity of host '.*' cannot be established\\.\\n"
                     + "The EC key's fingerprints are:\\n"
@@ -225,7 +226,7 @@ public class GITCredentialsProvider extends CredentialsProvider {
                 String promptedFingerprint = extractFingerprint(promptText);
                 if (promptedFingerprint == null) {
                     throw new UnsupportedCredentialItem(uri, String.format(
-                            "Unknown pattern to ask acceptance of host key fingerprint \n%s", promptText));
+                            "Unknown pattern to ask acceptance of host key fingerprint %n%s", promptText));
                 }
                 if (predefinedFingerprint != null) {
                     ((CredentialItem.YesNoType) item)
@@ -279,13 +280,8 @@ public class GITCredentialsProvider extends CredentialsProvider {
         return true;
     }
 
-    private boolean isGUI() {
-        return Core.getMainWindow() != null;
-    }
-
     private void askYesNoGUI(CredentialItem item, String promptText, URIish uri, String promptedFingerprint) {
-        IMainWindow mw = Core.getMainWindow();
-        int choice = mw.showConfirmDialog(promptText, null, JOptionPane.YES_NO_OPTION,
+        int choice = Core.getMainWindow().showConfirmDialog(promptText, null, JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
         if (choice == JOptionPane.YES_OPTION) {
             ((CredentialItem.YesNoType) item).setValue(true);
@@ -305,7 +301,7 @@ public class GITCredentialsProvider extends CredentialsProvider {
     }
 
     private void askYesNo(CredentialItem item, String promptText, URIish uri, String promptedFingerprint) {
-        if (isGUI()) {
+        if (StaticUIUtils.isGUI()) {
             askYesNoGUI(item, promptText, uri, promptedFingerprint);
         } else {
             askYesNoCUI(item, promptText, uri, promptedFingerprint);
@@ -328,10 +324,10 @@ public class GITCredentialsProvider extends CredentialsProvider {
      */
     private Credentials askCredentialsGUI(URIish uri, Credentials credentials, boolean passwordOnly,
             String msg) {
-        IMainWindow mw = Core.getMainWindow();
+        JFrame parent = Core.getMainWindow().getApplicationFrame();
         if (passwordOnly) {
-            PassphraseDialog passphraseDialog = new PassphraseDialog(mw.getApplicationFrame());
-            passphraseDialog.setLocationRelativeTo(Core.getMainWindow().getApplicationFrame());
+            PassphraseDialog passphraseDialog = new PassphraseDialog(parent);
+            passphraseDialog.setLocationRelativeTo(parent);
             if (uri.getScheme() == null) {
                 // asked passphrase
                 passphraseDialog.setTitleDesc(OStrings.getString(
@@ -350,8 +346,8 @@ public class GITCredentialsProvider extends CredentialsProvider {
                 return credentials;
             }
         } else {
-            UserPassDialog userPassDialog = new UserPassDialog(mw.getApplicationFrame());
-            userPassDialog.setLocationRelativeTo(Core.getMainWindow().getApplicationFrame());
+            UserPassDialog userPassDialog = new UserPassDialog(parent);
+            userPassDialog.setLocationRelativeTo(parent);
             userPassDialog.setDescription(OStrings.getString(
                     credentials.username == null ? "TEAM_USERPASS_FIRST" : "TEAM_USERPASS_WRONG",
                     uri.getHumanishName()));
@@ -403,7 +399,7 @@ public class GITCredentialsProvider extends CredentialsProvider {
     private Credentials askCredentials(URIish uri, Credentials credentials, boolean passwordOnly,
             String msg) {
         Credentials result;
-        if (isGUI()) {
+        if (StaticUIUtils.isGUI()) {
             result = askCredentialsGUI(uri, credentials, passwordOnly, msg);
         } else {
             result = askCredentialsCUI(uri, credentials, passwordOnly, msg);
@@ -449,7 +445,7 @@ public class GITCredentialsProvider extends CredentialsProvider {
      */
     protected static String extractFingerprint(String text) {
         Matcher fingerprintMatcher;
-        for (Pattern p : fingerPrintRegex) {
+        for (Pattern p : FINGER_PRINT_REGEX) {
             fingerprintMatcher = p.matcher(text);
             if (fingerprintMatcher.find()) {
                 int start = fingerprintMatcher.start("fingerprint");

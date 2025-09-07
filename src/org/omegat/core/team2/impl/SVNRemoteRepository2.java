@@ -120,8 +120,7 @@ public class SVNRemoteRepository2 implements IRemoteRepository2 {
         }
 
         ISVNOptions options = SVNWCUtil.createDefaultOptions(true);
-        ISVNAuthenticationManager authManager = new SVNAuthenticationManager(repo, predefinedUser,
-                predefinedPass, teamSettings);
+        ISVNAuthenticationManager authManager = new SVNAuthenticationManager(predefinedUser, predefinedPass);
         SVNWCContext svnwcContext = new SVNWCContext(options, null);
         SvnOperationFactory svnOperationFactory = new SvnOperationFactory(svnwcContext);
         svnOperationFactory.setAuthenticationManager(authManager);
@@ -344,7 +343,7 @@ public class SVNRemoteRepository2 implements IRemoteRepository2 {
             ourClientManager.getWCClient().doInfo(SVNURL.parseURIEncoded(SVNEncodingUtil.autoURIEncode(url)),
                     SVNRevision.HEAD, SVNRevision.HEAD);
         } catch (SVNAuthenticationException ex) {
-            // TODO: Non-SVN URLs such as below give a false positive with this
+            // Note: Non-SVN URLs such as below give a false positive with this
             // heuristic:
             // https://twitter.com/amadlonkay/status/699716236372889600
             return true;

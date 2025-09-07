@@ -28,6 +28,7 @@ package org.omegat.util;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 import java.util.function.Function;
@@ -71,8 +72,10 @@ public final class OStrings {
         IS_BETA = !b.getString("beta").isEmpty();
     }
 
+    private static final String BASENAME = "org/omegat/Bundle";
+
     /** Resource bundle that contains all the strings */
-    private static ResourceBundle bundle = ResourceBundle.getBundle("org/omegat/Bundle");
+    private static ResourceBundle bundle = ResourceBundle.getBundle(BASENAME);
 
     /**
      * Returns resource bundle.
@@ -82,18 +85,24 @@ public final class OStrings {
     }
 
     /**
+     * Loads resources with the specified locale.
+     * @param locale Locale to load.
+     */
+    public static void loadBundle(Locale locale) {
+        bundle = ResourceBundle.getBundle(BASENAME, locale);
+    }
+
+    /**
      * Loads resources from the specified file. If the file cannot be loaded,
      * resources are reverted to the default locale. Useful when testing
      * localisations outside the jar file.
      */
     public static void loadBundle(String filename) {
         boolean loaded = false;
-        try {
-            // Load the resource bundle
-            FileInputStream in = new FileInputStream(filename);
+        // Load the resource bundle
+        try (FileInputStream in = new FileInputStream(filename)) {
             bundle = new PropertyResourceBundle(in);
             loaded = true;
-            in.close();
         } catch (FileNotFoundException exception) {
             System.err.println("Resource bundle file not found: " + filename);
         } catch (IOException exception) {

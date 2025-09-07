@@ -1,10 +1,9 @@
 /*******************************************************************************
-
   OmegaT - Computer Assisted Translation (CAT) tool
            with fuzzy matching, translation memory, keyword search,
            glossaries, and translation leveraging into updated projects.
 
-  Copyright (c) 2023 Hiroshi Miura
+  Copyright (C) 2023 Hiroshi Miura
                 Home page: https://www.omegat.org/
                 Support center: https://omegat.org/support
 
@@ -28,6 +27,9 @@ package org.omegat.machinetranslators.mymemory;
 
 import org.omegat.core.Core;
 
+/**
+ * MyMemory machine translation engine connector registrations.
+ */
 public class MyMemoryTranslate {
 
     /**

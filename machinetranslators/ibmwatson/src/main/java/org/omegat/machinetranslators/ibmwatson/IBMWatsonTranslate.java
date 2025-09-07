@@ -1,5 +1,4 @@
 /*******************************************************************************
-
   OmegaT - Computer Assisted Translation (CAT) tool
            with fuzzy matching, translation memory, keyword search,
            glossaries, and translation leveraging into updated projects.
@@ -8,7 +7,7 @@
                 2011 Briac Pilpre, Alex Buloichik
                 2013 Didier Briel
                 2016 Aaron Madlon-Kay
-                2022,2023 Hiroshi Miura
+                2022-2023 Hiroshi Miura
                 Home page: https://www.omegat.org/
                 Support center: https://omegat.org/support
 
@@ -35,6 +34,7 @@ import java.awt.Window;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.TreeMap;
@@ -47,6 +47,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.jetbrains.annotations.Nullable;
 import org.omegat.core.Core;
 import org.omegat.core.machinetranslators.BaseCachedTranslate;
 import org.omegat.core.machinetranslators.BaseTranslate;
@@ -112,7 +113,7 @@ public class IBMWatsonTranslate extends BaseCachedTranslate {
     }
 
     @Override
-    protected String translate(Language sLang, Language tLang, String text) throws Exception {
+    protected @Nullable String translate(Language sLang, Language tLang, String text) throws Exception {
         String apiLogin = getCredential(PROPERTY_LOGIN);
         String apiPassword = getCredential(PROPERTY_PASSWORD);
 
@@ -181,8 +182,8 @@ public class IBMWatsonTranslate extends BaseCachedTranslate {
         if (modelId != null && !modelId.isEmpty()) {
             params.put("model_id", modelId);
         }
-        params.put("source", sLang.getLanguageCode().toUpperCase());
-        params.put("target", tLang.getLanguageCode().toUpperCase());
+        params.put("source", sLang.getLanguageCode().toUpperCase(Locale.ENGLISH));
+        params.put("target", tLang.getLanguageCode().toUpperCase(Locale.ENGLISH));
         return new ObjectMapper().writeValueAsString(params);
     }
 

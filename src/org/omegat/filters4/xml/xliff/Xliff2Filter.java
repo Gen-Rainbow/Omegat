@@ -5,7 +5,7 @@
 
  Copyright (C) 2017-2019 Thomas Cordonnier
                Home page: https://www.omegat.org/
-               Support center: http://groups.yahoo.com/group/OmegaT/
+               Support center: https://omegat.org/support
 
  This file is part of OmegaT.
 
@@ -323,7 +323,10 @@ public class Xliff2Filter extends AbstractXliffFilter {
         }
 
         String src = buildTags(source, false);
-        String tra = entryTranslateCallback.getTranslation(segId, src, path);
+        String tra = null;
+        if (entryTranslateCallback != null) {
+            tra = entryTranslateCallback.getTranslation(segId, src, path);
+        }
         if (tra != null) {
             writer.writeStartElement(namespace, "target");
             // even if source did not contain target,

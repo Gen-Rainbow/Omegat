@@ -5,7 +5,7 @@
 
  Copyright (C) 2010-2015 Alex Buloichik
                2013 Didier Briel
-               2022,2023 Hiroshi Miura
+               2022-2023 Hiroshi Miura
                Home page: https://www.omegat.org/
                Support center: https://omegat.org/support
 
@@ -58,7 +58,7 @@ public abstract class BaseTranslate implements IMachineTranslation {
     protected boolean enabled;
     protected IMTGlossarySupplier glossarySupplier;
 
-    public BaseTranslate() {
+    protected BaseTranslate() {
         // Options menu item
         JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem();
         Mnemonics.setLocalizedText(menuItem, getName());
@@ -76,34 +76,22 @@ public abstract class BaseTranslate implements IMachineTranslation {
         });
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isEnabled() {
         return enabled;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         Preferences.setPreference(getPreferenceName(), enabled);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void setGlossarySupplier(IMTGlossarySupplier glossarySupplier) {
         this.glossarySupplier = glossarySupplier;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getTranslation(Language sLang, Language tLang, String text) throws Exception {
         if (enabled) {
@@ -113,9 +101,6 @@ public abstract class BaseTranslate implements IMachineTranslation {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getCachedTranslation(Language sLang, Language tLang, String text) {
         return null;

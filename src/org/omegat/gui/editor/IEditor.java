@@ -86,6 +86,17 @@ public interface IEditor {
         public static CaretPosition startOfEntry() {
             return new CaretPosition(0);
         }
+
+        /**
+         * Set caret to a specific character.
+         * @param location 0 when first character of String, otherwise
+         *                location counts all text, both original language
+         *                and translated text.
+         * @return caret position.
+         */
+        public static CaretPosition goToCharacterAtIndex(int location) {
+            return new CaretPosition(location);
+        }
     }
 
     /**
@@ -498,5 +509,13 @@ public interface IEditor {
      */
     default boolean isOrientationAllLtr() {
         return true;
+    }
+
+    /**
+     * Get the current position in the entity translation in the editor
+     * @return caret position.
+     */
+    default CaretPosition getCurrentPositionInEntryTranslationInEditor() {
+        return CaretPosition.startOfEntry();
     }
 }

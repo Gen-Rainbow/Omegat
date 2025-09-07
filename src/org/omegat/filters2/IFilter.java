@@ -25,6 +25,8 @@
 
 package org.omegat.filters2;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.awt.Dialog;
 import java.awt.Window;
 import java.io.File;
@@ -32,12 +34,10 @@ import java.util.Map;
 
 /**
  * Interface for filters declaration.
- *
- * TODO: each filter should be stateless, i.e. options shouldn't be stored in
+ * <p>
+ * Note: each filter should be stateless, i.e., options shouldn't be stored in
  * filter, but should be sent to filter on each parse, align, or translate
- * operation.
- *
- * Filters shouldn't use Core, but use Context instead.
+ * operation through context. Filters shouldn't use Core, but use Context.
  *
  * @author Alex Buloichik (alex73mail@gmail.com)
  */
@@ -61,7 +61,7 @@ public interface IFilter {
     /**
      * The default list of filter instances that this filter class has. One
      * filter class may have different filter instances, different by source
-     * file mask, encoding of the source file etc.
+     * file mask, encoding of the source file, etc.
      * <p>
      * Note that the user may change the instances freely.
      *
@@ -75,7 +75,7 @@ public interface IFilter {
      * True means that OmegaT should handle all the encoding mess.
      * <p>
      * Return false to state that your filter doesn't need encoding management
-     * provided by OmegaT, because it either autodetects the encoding based on
+     * provided by OmegaT, because it either autodetect the encoding based on
      * file contents (like HTML filter does) or the encoding is fixed (like in
      * OpenOffice files).
      *
@@ -132,7 +132,6 @@ public interface IFilter {
      *            processing context
      * @param callback
      *            callback for parsed data
-     * @throws Exception
      */
     void parseFile(File inFile, Map<String, String> config, FilterContext context, IParseCallback callback)
             throws Exception;
@@ -150,7 +149,6 @@ public interface IFilter {
      *            processing context
      * @param callback
      *            callback for get translation
-     * @throws Exception
      */
     void translateFile(File inFile, File outFile, Map<String, String> config, FilterContext context,
             ITranslateCallback callback) throws Exception;
@@ -187,7 +185,7 @@ public interface IFilter {
      * @return new options or null if options not changed
      */
     @Deprecated
-    Map<String, String> changeOptions(Dialog parent, Map<String, String> config);
+    Map<String, String> changeOptions(@Nullable Dialog parent, Map<String, String> config);
 
     /**
      * Show change options dialog for able to change options.

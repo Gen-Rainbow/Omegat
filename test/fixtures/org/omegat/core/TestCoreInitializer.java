@@ -25,12 +25,14 @@
 
 package org.omegat.core;
 
+import org.jetbrains.annotations.Nullable;
+import org.omegat.core.data.TestCoreState;
 import org.omegat.core.threads.IAutoSave;
 import org.omegat.gui.editor.IEditor;
 import org.omegat.gui.glossary.IGlossaries;
-import org.omegat.gui.main.ConsoleWindow;
 import org.omegat.gui.main.IMainWindow;
-import org.omegat.gui.main.MainWindow;
+import org.omegat.gui.notes.INotes;
+import org.omegat.util.gui.StaticUIUtils;
 
 /**
  * Core initializer for unit tests.
@@ -43,27 +45,26 @@ public final class TestCoreInitializer {
     }
 
     public static void initEditor(IEditor editor) {
-        Core.editor = editor;
+        TestCoreState.getInstance().setEditor(editor);
     }
 
     public static void initAutoSave(IAutoSave autoSave) {
-        Core.saveThread = autoSave;
+        TestCoreState.initAutoSave(autoSave);
     }
 
-    public static void initMainWindow(IMainWindow mainWindow) throws Exception {
-        Core.setMainWindow(mainWindow);
+    public static void initMainWindow(@Nullable IMainWindow mainWindow) throws Exception {
+        TestCoreState.getInstance().setMainWindow(mainWindow);
 
-        if (mainWindow instanceof ConsoleWindow) {
-            return;
-        }
-
-        // FIXME: IMainWindow on GUI environment should be initialized
-        if (mainWindow instanceof MainWindow) {
-            Core.initializeGUIimpl((MainWindow) mainWindow);
+        if (StaticUIUtils.isGUI() && mainWindow != null) {
+            Core.initializeGUIimpl(mainWindow);
         }
     }
 
     public static void initGlossary(IGlossaries glossaries) {
-        Core.glossary = glossaries;
+        TestCoreState.getInstance().setGlossaries(glossaries);
+    }
+
+    public static void initNotes(INotes notes) {
+        TestCoreState.getInstance().setNotes(notes);
     }
 }

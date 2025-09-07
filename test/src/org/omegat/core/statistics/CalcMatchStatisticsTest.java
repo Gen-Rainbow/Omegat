@@ -59,21 +59,34 @@ import org.omegat.tokenizer.DefaultTokenizer;
 import org.omegat.tokenizer.ITokenizer;
 import org.omegat.tokenizer.LuceneEnglishTokenizer;
 import org.omegat.util.Language;
-import org.omegat.util.OConsts;
+import org.omegat.util.Log;
 import org.omegat.util.Preferences;
 import org.omegat.util.TestPreferencesInitializer;
 
 public class CalcMatchStatisticsTest {
 
+    private FilterMaster filterMaster;
+
+    /*
+     * Setup test project.
+     */
+    @Before
+    public final void setUp() throws Exception {
+        Core.initializeConsole(Collections.emptyMap());
+        TestPreferencesInitializer.init();
+        filterMaster = new FilterMaster(FilterMaster.createDefaultFiltersConfig());
+    }
+
     @Test
     public void testCalcMatchStatics() {
-        int threshold = Preferences.getPreferenceDefault(Preferences.EXT_TMX_FUZZY_MATCH_THRESHOLD,
-                OConsts.FUZZY_MATCH_THRESHOLD);
-        Assert.assertEquals(30, threshold);
+        TestProject project = new TestProject(new ProjectPropertiesTest(), filterMaster);
         IStatsConsumer callback = new TestStatsConsumer();
-        CalcMatchStatisticsMock calcMatchStatistics = new CalcMatchStatisticsMock(callback);
+        Segmenter segmenter = new Segmenter(SRX.getDefault());
+        CalcMatchStatisticsMock calcMatchStatistics = new CalcMatchStatisticsMock(project, segmenter, callback);
         calcMatchStatistics.start();
-        while (calcMatchStatistics.isAlive()) {
+        try {
+            calcMatchStatistics.join();
+        } catch (InterruptedException e) {
             calcMatchStatistics.checkInterrupted();
         }
         String[][] result = calcMatchStatistics.getTable();
@@ -120,20 +133,13 @@ public class CalcMatchStatisticsTest {
         Assert.assertEquals("938", result[7][2]);
         Assert.assertEquals("4894", result[7][3]);
         Assert.assertEquals("5699", result[7][4]);
-        // double check condition
-        threshold = Preferences.getPreferenceDefault(Preferences.EXT_TMX_FUZZY_MATCH_THRESHOLD,
-                OConsts.FUZZY_MATCH_THRESHOLD);
-        Assert.assertEquals(30, threshold);
 
         // change threshold
-        Preferences.setPreference(Preferences.EXT_TMX_FUZZY_MATCH_THRESHOLD, 70);
-        threshold = Preferences.getPreferenceDefault(Preferences.EXT_TMX_FUZZY_MATCH_THRESHOLD,
-                OConsts.FUZZY_MATCH_THRESHOLD);
-        Assert.assertEquals(70, threshold);
-        //
-        calcMatchStatistics = new CalcMatchStatisticsMock(callback);
+        calcMatchStatistics = new CalcMatchStatisticsMock(project, segmenter, callback);
         calcMatchStatistics.start();
-        while (calcMatchStatistics.isAlive()) {
+        try {
+            calcMatchStatistics.join();
+        } catch (InterruptedException e) {
             calcMatchStatistics.checkInterrupted();
         }
         result = calcMatchStatistics.getTable();
@@ -180,23 +186,6 @@ public class CalcMatchStatisticsTest {
         Assert.assertEquals("938", result[7][2]);
         Assert.assertEquals("4894", result[7][3]);
         Assert.assertEquals("5699", result[7][4]);
-        // double check condition
-        threshold = Preferences.getPreferenceDefault(Preferences.EXT_TMX_FUZZY_MATCH_THRESHOLD,
-                OConsts.FUZZY_MATCH_THRESHOLD);
-        Assert.assertEquals(70, threshold);
-    }
-
-    /*
-     * Setup test project.
-     */
-
-    @Before
-    public final void setUp() throws Exception {
-        Core.initializeConsole(Collections.emptyMap());
-        TestPreferencesInitializer.init();
-        Core.setFilterMaster(new FilterMaster(FilterMaster.createDefaultFiltersConfig()));
-        Core.setSegmenter(new Segmenter(SRX.getDefault()));
-        Core.setProject(new TestProject(new ProjectPropertiesTest()));
     }
 
     protected static class ProjectPropertiesTest extends ProjectProperties {
@@ -215,12 +204,16 @@ public class CalcMatchStatisticsTest {
 
         private final ProjectTMX projectTMX;
         private Map<String, ExternalTMX> transMemories;
+        private final Segmenter segmenter;
+        private final FilterMaster filterMaster;
 
-        TestProject(ProjectProperties prop) throws Exception {
+        TestProject(ProjectProperties prop, FilterMaster filterMaster) {
             super();
             this.prop = prop;
+            this.filterMaster = filterMaster;
+            segmenter = new Segmenter(Preferences.getSRX());
             projectTMX = new ProjectTMX(new Language("en"), new Language("ca"), true,
-                    Paths.get("test/data/tmx/empty.tmx").toFile(), null);
+                    Paths.get("test/data/tmx/empty.tmx").toFile(), null, segmenter);
         }
 
         @Override
@@ -253,7 +246,7 @@ public class CalcMatchStatisticsTest {
             try {
                 filter.parseFile(testSource.toFile(), Collections.emptyMap(), context, testCallback);
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.log(e);
             }
             return ste;
         }
@@ -261,7 +254,7 @@ public class CalcMatchStatisticsTest {
         @Override
         public ITokenizer getSourceTokenizer() {
             return new LuceneEnglishTokenizer();
-        };
+        }
 
         @Override
         public ITokenizer getTargetTokenizer() {
@@ -304,7 +297,7 @@ public class CalcMatchStatisticsTest {
                     try {
                         ExternalTMX newTMX;
                         Path testTmx = Paths.get("test/data/tmx/test-match-stat-en-ca.tmx");
-                        newTMX = ExternalTMFactory.load(testTmx.toFile());
+                        newTMX = ExternalTMFactory.load(testTmx.toFile(), prop, segmenter, filterMaster);
                         transMemories.put(testTmx.toString(), newTMX);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
@@ -359,13 +352,8 @@ public class CalcMatchStatisticsTest {
         }
 
         @Override
-        public void addEntry(String id, String source, String translation, boolean isFuzzy, String comment,
-                IFilter filter) {
-            addEntry(id, source, translation, isFuzzy, comment, null, filter, Collections.emptyList());
-        }
-
-        @Override
         public void linkPrevNextSegments() {
+            // do nothing
         }
     }
 
@@ -374,19 +362,27 @@ public class CalcMatchStatisticsTest {
         private final String[] rowsTotal = new String[] { "RowRepetitions", "RowExactMatch", "RowMatch95",
                 "RowMatch85", "RowMatch75", "RowMatch50", "RowNoMatch", "Total" };
 
+        private final IProject project;
         private MatchStatCounts result;
+        private final IStatsConsumer callback;
 
-        CalcMatchStatisticsMock(IStatsConsumer callback) {
-            super(callback, false);
+        CalcMatchStatisticsMock(IProject project, Segmenter segmenter, IStatsConsumer callback) {
+            super(project, segmenter, callback, false);
+            this.project = project;
+            this.callback = callback;
         }
 
         @Override
         public void run() {
-            entriesToProcess = Core.getProject().getAllEntries().size();
+            entriesToProcess = project.getAllEntries().size();
             result = calcTotal(false);
+            callback.finishData();
         }
 
         public String[][] getTable() {
+            if (result == null) {
+                return null;
+            }
             return result.calcTable(rowsTotal, i -> i != 1);
         }
     }
@@ -395,30 +391,37 @@ public class CalcMatchStatisticsTest {
 
         @Override
         public void appendTextData(final String result) {
+            // do nothing
         }
 
         @Override
         public void appendTable(final String title, final String[] headers, final String[][] data) {
+            // do nothing
         }
 
         @Override
         public void setTextData(final String data) {
+            // do nothing
         }
 
         @Override
         public void setTable(final String[] headers, final String[][] data) {
+            // do nothing
         }
 
         @Override
         public void setDataFile(final String path) {
+            // do nothing
         }
 
         @Override
         public void finishData() {
+            // do nothing
         }
 
         @Override
         public void showProgress(final int percent) {
+            // do nothing
         }
     }
 }

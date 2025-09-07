@@ -41,7 +41,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.JFileChooser;
@@ -52,7 +51,6 @@ import javax.swing.SwingWorker;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
-import org.omegat.CLIParameters;
 import org.omegat.Main;
 import org.omegat.convert.ConvertProject;
 import org.omegat.core.Core;
@@ -60,6 +58,7 @@ import org.omegat.core.CoreEvents;
 import org.omegat.core.KnownException;
 import org.omegat.core.data.ProjectFactory;
 import org.omegat.core.data.ProjectProperties;
+import org.omegat.core.data.RuntimePreferenceStore;
 import org.omegat.core.events.IProjectEventListener;
 import org.omegat.core.segmentation.SRX;
 import org.omegat.core.segmentation.Segmenter;
@@ -69,7 +68,6 @@ import org.omegat.core.team2.IRemoteRepository2;
 import org.omegat.core.team2.RemoteRepositoryProvider;
 import org.omegat.filters2.master.FilterMaster;
 import org.omegat.filters2.master.PluginUtils;
-import org.omegat.gui.dialogs.ChooseMedProject;
 import org.omegat.gui.dialogs.FileCollisionDialog;
 import org.omegat.gui.dialogs.NewProjectFileChooser;
 import org.omegat.gui.dialogs.NewTeamProjectController;
@@ -132,7 +130,7 @@ public final class ProjectUICommands {
         }
 
         new SwingWorker<Void, Void>() {
-            protected Void doInBackground() throws Exception {
+            protected Void doInBackground() {
 
                 // ask about new project properties
                 ProjectProperties props = new ProjectProperties(dir);
@@ -169,136 +167,6 @@ public final class ProjectUICommands {
 
                 mainWindow.setCursor(oldCursor);
                 return null;
-            }
-        }.execute();
-    }
-
-    public static void projectOpenMED() {
-        UIThreadsUtil.mustBeSwingThread();
-
-        if (Core.getProject().isProjectLoaded()) {
-            return;
-        }
-
-        // ask for MED file
-        ChooseMedProject ndm = new ChooseMedProject();
-        int ndmResult = ndm.showOpenDialog(Core.getMainWindow().getApplicationFrame());
-        if (ndmResult != OmegaTFileChooser.APPROVE_OPTION) {
-            // user press 'Cancel' in project creation dialog
-            return;
-        }
-        final File med = ndm.getSelectedFile();
-
-        // ask for new project dir
-        NewProjectFileChooser ndc = new NewProjectFileChooser();
-        int ndcResult = ndc.showSaveDialog(Core.getMainWindow().getApplicationFrame());
-        if (ndcResult != OmegaTFileChooser.APPROVE_OPTION) {
-            // user press 'Cancel' in project creation dialog
-            return;
-        }
-        final File dir = ndc.getSelectedFile();
-        if (!ensureProjectDir(dir)) {
-            return;
-        }
-
-        new SwingWorker<Void, Void>() {
-            protected Void doInBackground() throws Exception {
-
-                final ProjectProperties newProps = new ProjectProperties(dir);
-                ProjectMedProcessing.extractFromMed(med, newProps);
-                // create project
-                try {
-                    ProjectFactory.createProject(newProps);
-                    RecentProjects.add(dir.getAbsolutePath());
-                } catch (Exception ex) {
-                    Log.logErrorRB(ex, "PP_ERROR_UNABLE_TO_READ_PROJECT_FILE");
-                    Core.getMainWindow().displayErrorRB(ex, "PP_ERROR_UNABLE_TO_READ_PROJECT_FILE");
-                }
-
-                return null;
-            }
-
-            protected void done() {
-                try {
-                    get();
-                    SwingUtilities.invokeLater(Core.getEditor()::requestFocus);
-                } catch (Exception ex) {
-                    Log.logErrorRB(ex, "PP_ERROR_UNABLE_TO_READ_PROJECT_FILE");
-                    Core.getMainWindow().displayErrorRB(ex, "PP_ERROR_UNABLE_TO_READ_PROJECT_FILE");
-                }
-            }
-        }.execute();
-    }
-
-    public static void projectCreateMED() {
-        UIThreadsUtil.mustBeSwingThread();
-
-        if (!Core.getProject().isProjectLoaded()) {
-            return;
-        }
-
-        // commit the current entry first
-        Core.getEditor().commitAndLeave();
-
-        // ask for new MED file
-        ChooseMedProject ndm = new ChooseMedProject();
-        // default name
-        String zipName = null;
-        try {
-            File origin = ProjectMedProcessing.getOriginMedFile(Core.getProject().getProjectProperties());
-            if (origin != null) {
-                zipName = origin.getName();
-            }
-        } catch (Exception ignored) {
-        }
-        if (zipName == null) {
-            zipName = Core.getProject().getProjectProperties().getProjectName() + "-MED.zip";
-        }
-        ndm.setSelectedFile(new File(
-                Core.getProject().getProjectProperties().getProjectRootDir().getParentFile(), zipName));
-        int ndmResult = ndm.showSaveDialog(Core.getMainWindow().getApplicationFrame());
-        if (ndmResult != OmegaTFileChooser.APPROVE_OPTION) {
-            // user press 'Cancel' in project creation dialog
-            return;
-        }
-        // add .zip extension if there is no
-        final File med = ndm.getSelectedFile().getName().toLowerCase(Locale.ENGLISH).endsWith(".zip")
-                ? ndm.getSelectedFile()
-                : new File(ndm.getSelectedFile().getAbsolutePath() + ".zip");
-
-        new SwingWorker<Void, Void>() {
-            protected Void doInBackground() throws Exception {
-                IMainWindow mainWindow = Core.getMainWindow();
-                Cursor hourglassCursor = Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR);
-                Cursor oldCursor = mainWindow.getCursor();
-                mainWindow.setCursor(hourglassCursor);
-
-                mainWindow.showStatusMessageRB("MW_STATUS_SAVING");
-
-                Core.executeExclusively(true, () -> {
-                    Core.getProject().saveProject(true);
-                    try {
-                        Core.getProject().compileProject(".*");
-                    } catch (Exception ex) {
-                        throw new RuntimeException(ex);
-                    }
-                });
-
-                ProjectMedProcessing.createMed(med, Core.getProject().getProjectProperties());
-
-                mainWindow.showStatusMessageRB("MW_STATUS_SAVED");
-                mainWindow.setCursor(oldCursor);
-                return null;
-            }
-
-            protected void done() {
-                try {
-                    get();
-                    SwingUtilities.invokeLater(Core.getEditor()::requestFocus);
-                } catch (Exception ex) {
-                    Log.logErrorRB(ex, "PP_ERROR_UNABLE_TO_READ_PROJECT_FILE");
-                    Core.getMainWindow().displayErrorRB(ex, "PP_ERROR_UNABLE_TO_READ_PROJECT_FILE");
-                }
             }
         }.execute();
     }
@@ -566,7 +434,7 @@ public final class ProjectUICommands {
                  * this does not seem to be the intention of the current mapping
                  * usage.
                  */
-                if (!Core.getParams().containsKey(CLIParameters.NO_TEAM)) {
+                if (!RuntimePreferenceStore.getInstance().isNoTeam()) {
                     ProjectProperties localProps = props;
                     List<RepositoryDefinition> localRepos = props.getRepositories();
                     mainWindow.showStatusMessageRB("TEAM_OPEN");
@@ -978,23 +846,22 @@ public final class ProjectUICommands {
         if (!Core.getProject().isProjectLoaded()) {
             return;
         }
+        var frame = Core.getMainWindow().getApplicationFrame();
 
         // commit the current entry first
         Core.getEditor().commitAndLeave();
 
         // displaying the dialog to change paths and other properties
         final ProjectProperties newProps =
-                ProjectPropertiesDialogController.showDialog(Core.getMainWindow().getApplicationFrame(),
-                Core.getProject().getProjectProperties(),
+                ProjectPropertiesDialogController.showDialog(frame, Core.getProject().getProjectProperties(),
                 Core.getProject().getProjectProperties().getProjectName(),
                 ProjectPropertiesDialog.Mode.EDIT_PROJECT);
         if (newProps == null) {
             return;
         }
 
-        int res = JOptionPane.showConfirmDialog(Core.getMainWindow().getApplicationFrame(),
-                OStrings.getString("MW_REOPEN_QUESTION"), OStrings.getString("MW_REOPEN_TITLE"),
-                JOptionPane.YES_NO_OPTION);
+        int res = JOptionPane.showConfirmDialog(frame, OStrings.getString("MW_REOPEN_QUESTION"),
+                OStrings.getString("MW_REOPEN_TITLE"), JOptionPane.YES_NO_OPTION);
         if (res != JOptionPane.YES_OPTION) {
             return;
         }

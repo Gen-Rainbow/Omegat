@@ -31,7 +31,7 @@
 <suppressions>
 
     <!-- Permanently suppress errors/warnings -->
-
+    
     <!-- tests -->
     <suppress files="TestCore\.java" checks="MethodLength"/>
     <suppress checks="(MethodName|MemberName|OperatorWrap)" files=".*Test\.java"/>
@@ -65,25 +65,23 @@
     <suppress checks="WhitespaceAround"
             files="(AlignFilePicker|InstanceEditor|CreateGlossaryEntry|NewTeamProject|FilenamePatternsEditor|FilterEditor|SegmentPropertiesListCell|FilterBarReplace|ProjectFilesList)\.java"/>
     <suppress checks="ParameterNumber" files="EntryListPane\.java" lines="304"/>
+    <suppress checks="LineLength" files="(CreateGlossaryEntry|FilterBarReplace|FilterEditor|InstanceEditor|NewTeamProject|ProjectFilesList)\.java"/>
 
     <!-- Suppress for readability -->
-    <suppress files="PluginInformation\.java" checks="NeedBraces" lines="167-192"/>
+    <suppress files="PluginInformation\.java" checks="NeedBraces" lines="190-250"/>
     <!-- core/data/* -->
     <suppress checks="ParameterNumber" files="PluginInformation\.java" lines="60"/>
-    <suppress checks="ParameterNumber" files="ParseEntry\.java" lines="136,198,233,277"/>
-    <suppress checks="ParameterNumber" files="ExternalTMFactory\.java" lines="256,263"/>
+    <suppress checks="ParameterNumber" files="ParseEntry\.java" lines="130-150,200-277"/>
+    <suppress checks="ParameterNumber" files="ExternalTMFactory\.java" lines="270-290"/>
     <suppress checks="(ParameterNumber|FileLength)" files="RealProject\.java"/>
 
     <!-- util/Platform -->
-    <suppress files="Platform\.java" checks="ConstantName" lines="61-80"/>
+    <suppress files="Platform\.java" checks="ConstantName" lines="61-85"/>
     <!-- util/Preferences -->
     <suppress files="Preferences\.java" checks="LineLength" lines="197"/>
-    <!-- core/stat -->
-    <suppress checks="(ParameterNumber|MethodLength)" files="FindMatches\.java" lines="164,350,459"/>
     <!-- util/xml -->
     <suppress checks="(EmptyBlock|MethodLength)" files="XMLStreamReader\.java"/>
     <!-- util -->
-    <suppress files="StringUtil\.java" checks="EmptyBlock" lines="500,501,502"/>
     <suppress checks="InnerAssignment" files="TagUtil\.java"/>
     <suppress checks="InnerAssignment" files="VarExpansion\.java" lines="108"/>
     <suppress checks="ConstantName" files="UIDesignManager\.java" lines="83,85,336,338"/>
@@ -108,7 +106,7 @@
     <suppress files="AutoCompleter\.java" checks="EmptyStatement"/>
     <suppress files="RepositoriesMappingController\.java" checks="MethodLength"/>
     <suppress files="InstanceEditor\.java" checks="ParameterNumber"/>
-    <suppress files="EditorController\.java" checks="(File|Method)Length"/>
+    <suppress files="EditorController\.java" checks="FileLength"/>
     <suppress files="ProjectUICommands\.java" checks="MethodLength"/>
     <suppress files="ProjectFilesListController\.java" checks="MethodLength"/>
     <suppress files="BaseMainWindowMenu\.java" checks="MethodLength"/>
@@ -122,6 +120,7 @@
     <suppress checks="(MemberName|MissingSwitchDefault|ParameterNumber)" files="SearchResultEntry\.java"/>
 
     <suppress files="StaticUtils\.java" checks="EmptyStatement" lines="158,162,549"/>
+    <suppress files="StaticUtils\.java" checks="LineLength" lines="715"/>
     <suppress files="PatternConsts\.java" checks="LineLength" lines="50,259,294"/>
 
     <!-- repository -->
@@ -129,26 +128,24 @@
     <suppress checks="MemberName" files="SVNAuthenticationManager\.java" lines="236"/>
     <suppress files="FileRepository\.java" checks="StaticVariableName" lines="49"/>
 
-    <!-- GITExternalGpgSigner -->
-    <suppress files="GITExternalGpgSigner\.java" checks="ConstantName" lines="74-84"/>
+    <!-- GITExternalGpgSigner: ignore because the class will be deprecated in OmegaT 6.2.0 -->
+    <suppress files="GITExternalGpgSigner\.java" checks="ConstantName"/>
 
     <!-- Searcher -->
-    <suppress files="Searcher\.java"
-              checks="(LineLength|MemberName|ParameterNumber|MissingSwitchDefault|InnerAssignment)"
-         lines="90,91,92,96,100,104,105,107,264,275,276,284,286,293,294,308,309,359,361,449,495,605,674,710"/>
+    <suppress files="Searcher\.java" checks="ParameterNumber"/>
 
     <!-- matching -->
-    <suppress files="NearString\.java" checks="(ParameterNumber|TypeName)" lines="49,53,57,76"/>
+    <suppress files="NearString\.java" checks="TypeName" lines="50-70"/>
+    <suppress files="NearString\.java" checks="ParameterNumber"/>
     <suppress files="LevenshteinDistance\.java" checks="LocalVariableName" lines="147,159"/>
 
     <!-- Aligner, AlignFilePickerController, AlignPanelController -->
     <suppress files="Aligner\.java" checks="ParameterNumber"/>
-    <suppress files="AlignFilePickerController\.java|AlignPanelController\.java" checks="MethodLength|FileLength"/>
+    <suppress files="AlignPanelController\.java" checks="MethodLength|FileLength"/>
 
     <!-- machinetranslators -->
     <suppress checks="(DesignForExtension|MagicNumber|MemberName|HideUtilityClassConstructor)"
               files="(Apertium|DeepL|YandexCloud|Google2|IBMWatson|MyMemory)Translate\.java"/>
-    <suppress files="YandexCloudTranslate\.java" checks="LocalVariableName" lines="139"/>
 
     <!-- spellchecker -->
     <suppress checks="(LineLength|OperatorWrap)" files="SpellcheckerConfigurationController\.java"/>
@@ -162,7 +159,7 @@
     <suppress checks="(TypeName|MissingSwitchDefault)" files="srtFilter\.java" lines="55,102"/>
     <suppress checks="TypeName" files="XLIFFOptions\.java" lines="67"/>
     <suppress files="XHTMLDialect\.java" checks="InnerAssignment" lines="131,132"/>
-    <suppress files="CamtasiaWindowsDialect\.java" checks="MethodLength" lines="45"/>
+    <suppress files="CamtasiaWindowsDialect\.java" checks="MethodLength" lines="44"/>
     <suppress files="Entry\.java" checks="MethodLength"/>
     <suppress files="Handler\.java" checks="EmptyBlock" lines="857"/>
 

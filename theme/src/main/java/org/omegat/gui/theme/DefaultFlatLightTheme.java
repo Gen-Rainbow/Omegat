@@ -34,12 +34,20 @@ import javax.swing.border.MatteBorder;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 
+/**
+ * A default light theme customized from FlatLightLaf.
+ *
+ * @author Hiroshi Miura
+ */
 @SuppressWarnings("serial")
 public class DefaultFlatLightTheme extends FlatLaf {
     private static final String NAME = "Flat light";
     private static final String ID = "FlatLightTheme";
     private static final String DESCRIPTION = "A theme customized from FlatLightLaf";
 
+    /**
+     * Registers the default Flat Light Theme with the system UIManager.
+     */
     public static void loadPlugins() {
         UIManager.installLookAndFeel(NAME, DefaultFlatLightTheme.class.getName());
     }
@@ -58,19 +66,20 @@ public class DefaultFlatLightTheme extends FlatLaf {
     @Override
     public UIDefaults getDefaults() {
         UIDefaults origin = new FlatLightLaf().getDefaults();
-        UIDefaults defaults = DefaultFlatTheme.setDefaults(origin, ID); // get
-                                                                        // omegat
-                                                                        // defaults
+        // get omegat defaults
+        UIDefaults defaults = DefaultFlatTheme.setDefaults(origin, ID);
         UIDefaults custom = setLightDefaults(defaults);
         UIManager.put("DockViewTitleBar.border", new MatteBorder(1, 1, 1, 1, custom.getColor("borderColor")));
         DefaultFlatDarkTheme.setupDecoration();
         return custom;
     }
 
+    @Override
     public String getName() {
         return NAME;
     }
 
+    @Override
     public String getDescription() {
         return DESCRIPTION;
     }

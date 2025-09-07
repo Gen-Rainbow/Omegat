@@ -28,7 +28,6 @@ package org.omegat.gui.align;
 import java.io.File;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -54,24 +53,28 @@ import net.loomchild.maligna.filter.aligner.align.hmm.fb.ForwardBackwardAlgorith
 import net.loomchild.maligna.filter.aligner.align.hmm.viterbi.ViterbiAlgorithm;
 import net.loomchild.maligna.matrix.FullMatrixFactory;
 import net.loomchild.maligna.matrix.MatrixFactory;
-import tokyo.northside.logging.ILogger;
-import tokyo.northside.logging.LoggerFactory;
+import org.jetbrains.annotations.Nullable;
 
-import org.omegat.core.Core;
 import org.omegat.core.data.ParseEntry;
 import org.omegat.core.data.ParseEntry.ParseEntryResult;
 import org.omegat.core.data.ProtectedPart;
+import org.omegat.core.segmentation.SRX;
+import org.omegat.core.segmentation.Segmenter;
 import org.omegat.filters2.FilterContext;
 import org.omegat.filters2.IFilter;
 import org.omegat.filters2.IParseCallback;
+import org.omegat.filters2.master.FilterMaster;
 import org.omegat.util.Language;
 import org.omegat.util.OStrings;
+import org.omegat.util.Preferences;
 import org.omegat.util.StringUtil;
 import org.omegat.util.TMXWriter2;
 
+import gen.core.filters.Filters;
+
 /**
- * Class to drive alignment of input files. Responsible for filtering and performing automatic alignment with
- * mALIGNa.
+ * Class to drive alignment of input files. Responsible for filtering and
+ * performing automatic alignment with mALIGNa.
  *
  * @author Aaron Madlon-Kay
  *
@@ -79,7 +82,6 @@ import org.omegat.util.TMXWriter2;
  */
 public class Aligner {
 
-    private static final ILogger LOGGER = LoggerFactory.getLogger(Aligner.class);
     final String srcFile;
     final Language srcLang;
     final String trgFile;
@@ -89,24 +91,27 @@ public class Aligner {
     boolean removeTags = false;
 
     /**
-     * Modes indicating the ways in which the source text can be sent to the alignment algorithm.
+     * Modes indicating the ways in which the source text can be sent to the
+     * alignment algorithm.
      */
     enum ComparisonMode {
         /**
-         * Take all source lines and align against all target lines. This is the default as it makes no
-         * demands of the input files.
+         * Take all source lines and align against all target lines. This is the
+         * default as it makes no demands of the input files.
          */
         HEAPWISE,
 
         /**
-         * This mode is only available when the source and target files extract to the same number of text
-         * units. Source and target strings with the same index are aligned separately.
+         * This mode is only available when the source and target files extract
+         * to the same number of text units. Source and target strings with the
+         * same index are aligned separately.
          */
         PARSEWISE,
 
         /**
-         * This mode is only available when the source and target files provide IDs for all their text units.
-         * Each unit with matching ID is aligned separately.
+         * This mode is only available when the source and target files provide
+         * IDs for all their text units. Each unit with matching ID is aligned
+         * separately.
          */
         ID
     }
@@ -144,19 +149,20 @@ public class Aligner {
     }
 
     enum CounterType {
-        CHAR,
-        WORD
+        CHAR, WORD
     }
 
-    ComparisonMode comparisonMode;
+    @Nullable ComparisonMode comparisonMode;
     AlgorithmClass algorithmClass;
     CalculatorType calculatorType;
     CounterType counterType;
 
-    private List<String> srcRaw;
-    private List<String> trgRaw;
-    private List<Entry<String, String>> idPairs;
+    private @Nullable List<String> srcRaw;
+    private @Nullable List<String> trgRaw;
+    private @Nullable List<Entry<String, String>> idPairs;
     List<ComparisonMode> allowedModes;
+    private Segmenter segmenter;
+    private final FilterMaster fm;
 
     public Aligner(String srcFile, Language srcLang, String trgFile, Language trgLang) {
         this.srcFile = srcFile;
@@ -164,11 +170,25 @@ public class Aligner {
         this.trgFile = trgFile;
         this.trgLang = trgLang;
         restoreDefaults();
+        SRX srx = Preferences.getSRX();
+        updateSegmenter(srx != null ? srx : SRX.getDefault());
+        Filters filters = Preferences.getFilters() != null ? Preferences.getFilters()
+                : FilterMaster.createDefaultFiltersConfig();
+        fm = new FilterMaster(filters);
+    }
+
+    void updateSegmenter(SRX srx) {
+        segmenter = new Segmenter(srx);
+    }
+
+    Segmenter getSegmenter() {
+        return segmenter;
     }
 
     /**
-     * Parse the input files and extract the alignable text, which is retained in memory so that different
-     * alignment settings can be tried without re-parsing the files. This determines the available
+     * Parse the input files and extract the alignable text, which is retained
+     * in memory so that different alignment settings can be tried without
+     * re-parsing the files. This determines the available
      * {@link ComparisonMode}s, available in {@link #allowedModes}.
      *
      * @throws Exception
@@ -182,12 +202,12 @@ public class Aligner {
 
         List<ComparisonMode> allowed = new ArrayList<>();
         allowed.add(ComparisonMode.HEAPWISE);
-        if (srcRaw.size() == trgRaw.size()) {
+        if (srcRaw != null && trgRaw != null && srcRaw.size() == trgRaw.size()) {
             allowed.add(ComparisonMode.PARSEWISE);
         }
         List<String> srcIds = srcResult.getKey();
         List<String> trgIds = trgResult.getKey();
-        if (srcIds.size() == srcRaw.size() && trgIds.size() == trgRaw.size()) {
+        if (srcRaw != null && trgRaw != null && srcIds.size() == srcRaw.size() && trgIds.size() == trgRaw.size()) {
             allowed.add(ComparisonMode.ID);
             comparisonMode = ComparisonMode.ID;
 
@@ -247,34 +267,34 @@ public class Aligner {
     private Entry<List<String>, List<String>> parseFile(String file) throws Exception {
         final List<String> ids = new ArrayList<>();
         final List<String> rawSegs = new ArrayList<>();
-        Core.getFilterMaster().loadFile(file, new FilterContext(srcLang, trgLang, true).setRemoveAllTags(removeTags),
+        fm.loadFile(file, new FilterContext(srcLang, trgLang, true).setRemoveAllTags(removeTags),
                 new IParseCallback() {
                     @Override
                     public void linkPrevNextSegments() {
                     }
 
                     @Override
-                    public void addEntry(String id, String source, String translation, boolean isFuzzy, String comment,
-                            IFilter filter) {
+                    public void addEntry(String id, String source, String translation, boolean isFuzzy,
+                            String comment, IFilter filter) {
                         process(source, id);
                     }
 
                     @Override
-                    public void addEntry(String id, String source, String translation, boolean isFuzzy, String comment,
-                            String path, IFilter filter, List<ProtectedPart> protectedParts) {
-                        process(source, id != null ? id : path != null ? path : null);
+                    public void addEntry(String id, String source, String translation, boolean isFuzzy,
+                            String comment, String path, IFilter filter, List<ProtectedPart> protectedParts) {
+                        process(source, id != null ? id : path);
                     }
 
                     @Override
                     public void addEntryWithProperties(String id, String source, String translation,
                             boolean isFuzzy, String[] props, String path, IFilter filter,
                             List<ProtectedPart> protectedParts) {
-                        process(source, id != null ? id : path != null ? path : null);
+                        process(source, id != null ? id : path);
 
                     }
 
                     private void process(String text, String id) {
-                        boolean removeSpaces = Core.getFilterMaster().getConfig().isRemoveSpacesNonseg();
+                        boolean removeSpaces = fm.getConfig().isRemoveSpacesNonseg();
                         text = StringUtil.normalizeUnicode(ParseEntry.stripSomeChars(text,
                                 new ParseEntryResult(), removeTags, removeSpaces));
                         if (!text.trim().isEmpty()) {
@@ -289,8 +309,8 @@ public class Aligner {
     }
 
     /**
-     * Segment the specified list of strings into a flat list of strings. The resulting list will be free of
-     * empty strings.
+     * Segment the specified list of strings into a flat list of strings. The
+     * resulting list will be free of empty strings.
      *
      * @param language
      *            The language of the texts to be segmented
@@ -299,48 +319,49 @@ public class Aligner {
      * @return Flattened list of segments
      */
     private List<String> segmentAll(Language language, List<String> rawTexts) {
-        return rawTexts.stream().flatMap(text -> Core.getSegmenter().segment(language, text, null, null).stream())
+        return rawTexts.stream().flatMap(text -> segmenter.segment(language, text, null, null).stream())
                 .filter(s -> !s.isEmpty()).collect(Collectors.toList());
     }
 
     /**
-     * Align {@link ComparisonMode#PARSEWISE} without first segmenting the source and target strings. No
-     * alignment algorithm is applied.
+     * Align {@link ComparisonMode#PARSEWISE} without first segmenting the
+     * source and target strings. No alignment algorithm is applied.
      *
-     * @return List of beads where each entry of {@link #srcRaw} is aligned by index with each entry of
-     *         {@link #trgRaw}
+     * @return List of beads where each entry of {@link #srcRaw} is aligned by
+     *         index with each entry of {@link #trgRaw}
      */
     private Stream<Alignment> alignParsewiseNotSegmented() {
         if (!allowedModes.contains(ComparisonMode.PARSEWISE)) {
             throw new UnsupportedOperationException();
         }
         return IntStream.range(0, srcRaw.size())
-                .mapToObj(i -> new Alignment(Arrays.asList(srcRaw.get(i)), Arrays.asList(trgRaw.get(i))));
+                .mapToObj(i -> new Alignment(Collections.singletonList(srcRaw.get(i)),
+                        Collections.singletonList(trgRaw.get(i))));
     }
 
     /**
-     * Align {@link ComparisonMode#PARSEWISE} the source and target strings. Each pair is segmented and
-     * aligned separately by algorithm.
+     * Align {@link ComparisonMode#PARSEWISE} the source and target strings.
+     * Each pair is segmented and aligned separately by algorithm.
      *
-     * @return List of beads where each entry of {@link #srcRaw} is aligned by index with each entry of
-     *         {@link #trgRaw}
+     * @return List of beads where each entry of {@link #srcRaw} is aligned by
+     *         index with each entry of {@link #trgRaw}
      */
     private Stream<Alignment> alignParsewiseSegmented() {
         if (!allowedModes.contains(ComparisonMode.PARSEWISE)) {
             throw new UnsupportedOperationException();
         }
         return IntStream.range(0, srcRaw.size()).mapToObj(i -> {
-            List<String> source = Core.getSegmenter().segment(srcLang, srcRaw.get(i), null, null).stream()
+            List<String> source = segmenter.segment(srcLang, srcRaw.get(i), null, null).stream()
                     .filter(s -> !s.isEmpty()).collect(Collectors.toList());
-            List<String> target = Core.getSegmenter().segment(trgLang, trgRaw.get(i), null, null).stream()
+            List<String> target = segmenter.segment(trgLang, trgRaw.get(i), null, null).stream()
                     .filter(s -> !s.isEmpty()).collect(Collectors.toList());
             return doAlign(algorithmClass, calculatorType, counterType, source, target);
         }).flatMap(List::stream);
     }
 
     /**
-     * Align by {@link ComparisonMode#ID} without first segmenting the source and target strings. No alignment
-     * algorithm is applied.
+     * Align by {@link ComparisonMode#ID} without first segmenting the source
+     * and target strings. No alignment algorithm is applied.
      *
      * @return List of beads aligned by ID
      */
@@ -349,12 +370,13 @@ public class Aligner {
             throw new UnsupportedOperationException();
         }
         return idPairs.stream()
-                .map(e -> new Alignment(Arrays.asList(e.getKey()), Arrays.asList(e.getValue())));
+                .map(e -> new Alignment(Collections.singletonList(e.getKey()),
+                        Collections.singletonList(e.getValue())));
     }
 
     /**
-     * Align source and target strings by {@link ComparisonMode#ID}. Each pair is segmented and aligned
-     * separately by algorithm.
+     * Align source and target strings by {@link ComparisonMode#ID}. Each pair
+     * is segmented and aligned separately by algorithm.
      *
      * @return List of beads aligned by ID
      */
@@ -363,56 +385,58 @@ public class Aligner {
             throw new UnsupportedOperationException();
         }
         return idPairs.stream().map(e -> {
-            List<String> source = Core.getSegmenter().segment(srcLang, e.getKey(), null, null).stream()
+            List<String> source = segmenter.segment(srcLang, e.getKey(), null, null).stream()
                     .filter(s -> !s.isEmpty()).collect(Collectors.toList());
-            List<String> target = Core.getSegmenter().segment(trgLang, e.getValue(), null, null).stream()
+            List<String> target = segmenter.segment(trgLang, e.getValue(), null, null).stream()
                     .filter(s -> !s.isEmpty()).collect(Collectors.toList());
             return doAlign(algorithmClass, calculatorType, counterType, source, target);
         }).flatMap(List::stream);
     }
 
     /**
-     * Align {@link ComparisonMode#HEAPWISE}. Input text is optionally segmented, then aligned by algorithm.
+     * Align {@link ComparisonMode#HEAPWISE}. Input text is optionally
+     * segmented, then aligned by algorithm.
      *
      * @param doSegmenting
      *            Whether to segment the text
      * @return List of beads aligned heapwise
      */
     private Stream<Alignment> alignHeapwise(boolean doSegmenting) {
+        if (srcRaw == null) {
+            return Stream.empty();
+        }
         List<String> srcSegs = doSegmenting ? segmentAll(srcLang, srcRaw) : srcRaw;
+        if (trgRaw == null) {
+            return Stream.empty();
+        }
         List<String> trgSegs = doSegmenting ? segmentAll(trgLang, trgRaw) : trgRaw;
         return doAlign(algorithmClass, calculatorType, counterType, srcSegs, trgSegs).stream();
     }
 
     /**
      * Write string pair entries as TMX file.
-     * @param outFile target output.
-     * @param pairs List of map.entry with String.
-     * @throws Exception when got I/O error.
+     * 
+     * @param outFile
+     *            target output.
+     * @param pairs
+     *            List of map.entry with String.
+     * @throws Exception
+     *             when got I/O error.
      */
     public void writePairsToTMX(File outFile, List<Entry<String, String>> pairs) throws Exception {
-        TMXWriter2 writer = null;
         String creator = OStrings.getApplicationName() + " Aligner";
         long time = System.currentTimeMillis();
-        try {
-            writer = new TMXWriter2(outFile, srcLang, trgLang, true, true, false);
+        try (TMXWriter2 writer = new TMXWriter2(outFile, srcLang, trgLang, true, true, false)) {
             for (Entry<String, String> e : pairs) {
                 writer.writeEntry(e.getKey(), e.getValue(), null, creator, time, null, 0L, null);
-            }
-        } finally {
-            if (writer != null) {
-                try {
-                    writer.close();
-                } catch (Exception ex) {
-                    LOGGER.atInfo().setCause(ex).log();
-                }
             }
         }
     }
 
     /**
-     * Perform alignment according to the current settings and return the resulting list of beads. Will call
-     * {@link #loadFiles()} if it has not yet been called.
+     * Perform alignment according to the current settings and return the
+     * resulting list of beads. Will call {@link #loadFiles()} if it has not yet
+     * been called.
      *
      * @return List of beads
      * @throws Exception
@@ -421,6 +445,9 @@ public class Aligner {
     Stream<Alignment> alignImpl() throws Exception {
         if (srcRaw == null || trgRaw == null) {
             loadFiles();
+        }
+        if (comparisonMode == null) {
+            throw new IllegalStateException("Comparison mode not set");
         }
         switch (comparisonMode) {
         case PARSEWISE:
@@ -435,17 +462,14 @@ public class Aligner {
     }
 
     /**
-     * Align the input files according to the current settings to a list
-     * of pairs where
+     * Align the input files according to the current settings to a list of
+     * pairs where
      * <ol>
      * <li>key = source text
      * <li>value = target text
      * </ol>
      *
      * Calls {@link #loadFiles()} if it has not yet been called.
-     *
-     * @return
-     * @throws Exception
      */
     public List<Entry<String, String>> align() throws Exception {
         return alignImpl().map(bead -> {
@@ -456,12 +480,8 @@ public class Aligner {
     }
 
     /**
-     * Obtain appropriate calculator according to the specified {@link CalculatorType}.
-     *
-     * @param calculatorType
-     * @param counterType
-     * @param aligns
-     * @return
+     * Obtain appropriate calculator according to the specified
+     * {@link CalculatorType}.
      */
     private static Calculator getCalculator(CalculatorType calculatorType, CounterType counterType,
             List<Alignment> aligns) {
@@ -480,7 +500,8 @@ public class Aligner {
      * Obtain appropriate counter according to the specified
      * {@link CounterType}.
      *
-     * @param counterType counter type.
+     * @param counterType
+     *            counter type.
      * @return counter object.
      */
     private static Counter getCounter(CounterType counterType) {
@@ -495,11 +516,13 @@ public class Aligner {
     }
 
     /**
-     * Obtain an appropriate aligned algorithm object according
-     * to the specified {@link AlgorithmClass}.
+     * Obtain an appropriate aligned algorithm object according to the specified
+     * {@link AlgorithmClass}.
      *
-     * @param algorithmClass algorithm requested.
-     * @param calculator calculator object.
+     * @param algorithmClass
+     *            algorithm requested.
+     * @param calculator
+     *            calculator object.
      * @return algorithm object.
      */
     private static AlignAlgorithm getAlgorithm(AlgorithmClass algorithmClass, Calculator calculator) {
@@ -516,18 +539,12 @@ public class Aligner {
     }
 
     /**
-     * Use mALIGNa to align the specified source and target texts, according to the specified parameters.
-     *
-     * @param algorithmClass
-     * @param calculatorType
-     * @param counterType
-     * @param source
-     * @param target
-     * @return
+     * Use mALIGNa to align the specified source and target texts, according to
+     * the specified parameters.
      */
     private static List<Alignment> doAlign(AlgorithmClass algorithmClass, CalculatorType calculatorType,
             CounterType counterType, List<String> source, List<String> target) {
-        List<Alignment> aligns = Arrays.asList(new Alignment(source, target));
+        List<Alignment> aligns = List.of(new Alignment(source, target));
         Calculator calculator = getCalculator(calculatorType, counterType, aligns);
         AlignAlgorithm algorithm = getAlgorithm(algorithmClass, calculator);
         Filter filter = new net.loomchild.maligna.filter.aligner.Aligner(algorithm);

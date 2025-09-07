@@ -68,6 +68,7 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import org.languagetool.AnalyzedSentence;
 import org.languagetool.JLanguageTool;
+import org.languagetool.LtBuildInfo;
 import org.languagetool.rules.Category;
 import org.languagetool.rules.CategoryId;
 import org.languagetool.rules.Rule;
@@ -82,7 +83,6 @@ import org.omegat.languagetools.LanguageToolWrapper;
 import org.omegat.languagetools.LanguageToolWrapper.BridgeType;
 import org.omegat.util.Log;
 import org.omegat.util.OStrings;
-import org.omegat.util.StringUtil;
 
 /**
  * @author Panagiotis Minos
@@ -93,7 +93,9 @@ public class LanguageToolConfigurationController extends BasePreferencesControll
 
     private static final String NEW_RULE_PATTERN = "^[A-Za-z_.]+$";
     private BridgeType selectedBridgeType;
-    private Set<String> disabledCategories, disabledRuleIds, enabledRuleIds;
+    private Set<String> disabledCategories;
+    private Set<String> disabledRuleIds;
+    private Set<String> enabledRuleIds;
     private String targetLanguageCode;
 
     private LanguageToolConfigurationPanel panel;
@@ -114,12 +116,13 @@ public class LanguageToolConfigurationController extends BasePreferencesControll
 
     private void initGui() {
         panel = new LanguageToolConfigurationPanel();
-        org.openide.awt.Mnemonics.setLocalizedText(panel.bridgeNativeRadioButton,
-                StringUtil.format(OStrings.getString("GUI_LANGUAGETOOL_NATIVE_BRIDGE"), JLanguageTool.VERSION));
+        org.openide.awt.Mnemonics.setLocalizedText(panel.bridgeNativeRadioButton, OStrings.getString(
+                "GUI_LANGUAGETOOL_NATIVE_BRIDGE", LtBuildInfo.OS.getVersion()));
         panel.bridgeNativeRadioButton.addActionListener(e -> handleBridgeTypeChange(BridgeType.NATIVE));
         panel.bridgeLocalRadioButton.addActionListener(e -> handleBridgeTypeChange(BridgeType.LOCAL_INSTALLATION));
         panel.bridgeRemoteRadioButton.addActionListener(e -> handleBridgeTypeChange(BridgeType.REMOTE_URL));
         panel.directoryChooseButton.addActionListener(e -> chooseLocalInstallation());
+        panel.modelDirectoryChooseButton.addActionListener(e -> chooseLanguageModel());
         panel.addRuleButton.addActionListener(e -> addRule());
         panel.deleteRuleButton.addActionListener(e -> deleteRules());
         if (Core.getProject().isProjectLoaded()) {
@@ -145,6 +148,19 @@ public class LanguageToolConfigurationController extends BasePreferencesControll
         if (result == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
             panel.localServerJarPathTextField.setText(file.getAbsolutePath());
+        }
+    }
+
+    private void chooseLanguageModel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        fileChooser.setDialogTitle(OStrings.getString("GUI_LANGUAGETOOL_DIRECTORY_CHOOSER_TITLE"));
+        String modelPath = LanguageToolPrefs.getLanguageModelDefaultPath();
+        fileChooser.setCurrentDirectory(new File(modelPath));
+        int result = fileChooser.showOpenDialog(panel);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            panel.modelDirectoryTextField.setText(file.getAbsolutePath());
         }
     }
 
@@ -426,16 +442,22 @@ public class LanguageToolConfigurationController extends BasePreferencesControll
             panel.localServerJarPathTextField.setEnabled(false);
             panel.directoryChooseButton.setEnabled(false);
             panel.urlTextField.setEnabled(false);
+            panel.modelDirectoryTextField.setEnabled(false);
+            panel.modelDirectoryChooseButton.setEnabled(false);
             break;
         case REMOTE_URL:
             panel.localServerJarPathTextField.setEnabled(false);
             panel.directoryChooseButton.setEnabled(false);
             panel.urlTextField.setEnabled(true);
+            panel.modelDirectoryTextField.setEnabled(false);
+            panel.modelDirectoryChooseButton.setEnabled(false);
             break;
         case LOCAL_INSTALLATION:
             panel.localServerJarPathTextField.setEnabled(true);
             panel.directoryChooseButton.setEnabled(true);
             panel.urlTextField.setEnabled(false);
+            panel.modelDirectoryTextField.setEnabled(true);
+            panel.modelDirectoryChooseButton.setEnabled(true);
             break;
         }
     }
@@ -457,6 +479,7 @@ public class LanguageToolConfigurationController extends BasePreferencesControll
 
         panel.urlTextField.setText(LanguageToolPrefs.getRemoteUrl());
         panel.localServerJarPathTextField.setText(LanguageToolPrefs.getLocalServerJarPath());
+        panel.modelDirectoryTextField.setText(LanguageToolPrefs.getLanguageModelPath());
 
         if (targetLanguageCode != null) {
             disabledCategories = LanguageToolPrefs.getDisabledCategories(targetLanguageCode);
@@ -474,6 +497,7 @@ public class LanguageToolConfigurationController extends BasePreferencesControll
         panel.bridgeNativeRadioButton.setSelected(true);
         panel.urlTextField.setText("");
         panel.localServerJarPathTextField.setText("");
+        panel.modelDirectoryTextField.setText("");
 
         if (targetLanguageCode != null) {
             disabledCategories = LanguageToolPrefs.getDefaultDisabledCategories();
@@ -491,6 +515,7 @@ public class LanguageToolConfigurationController extends BasePreferencesControll
         LanguageToolPrefs.setBridgeType(selectedBridgeType);
         LanguageToolPrefs.setRemoteUrl(panel.urlTextField.getText());
         LanguageToolPrefs.setLocalServerJarPath(panel.localServerJarPathTextField.getText());
+        LanguageToolPrefs.setLanguageModelPath(panel.modelDirectoryTextField.getText());
 
         if (targetLanguageCode != null) {
             LanguageToolPrefs.setDisabledCategories(disabledCategories, targetLanguageCode);

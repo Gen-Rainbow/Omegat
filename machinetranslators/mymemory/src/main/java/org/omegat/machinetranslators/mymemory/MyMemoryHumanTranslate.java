@@ -1,5 +1,4 @@
 /*******************************************************************************
-
   OmegaT - Computer Assisted Translation (CAT) tool
            with fuzzy matching, translation memory, keyword search,
            glossaries, and translation leveraging into updated projects.
@@ -39,6 +38,8 @@ import org.omegat.core.machinetranslators.MachineTranslateError;
 import org.omegat.util.Language;
 
 /**
+ * MyMemory machine translation engine connector.
+ *
  * @author Ibai Lakunza Velasco
  * @author Didier Briel
  * @author Martin Wunderlich

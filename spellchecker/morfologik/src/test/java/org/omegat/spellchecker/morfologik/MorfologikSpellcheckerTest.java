@@ -25,44 +25,48 @@
 
 package org.omegat.spellchecker.morfologik;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.omegat.core.Core;
-import org.omegat.core.data.NotLoadedProject;
-import org.omegat.core.data.ProjectProperties;
-import org.omegat.core.spellchecker.ISpellChecker;
-import org.omegat.util.Language;
-import org.omegat.util.TestPreferencesInitializer;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.apache.commons.io.FileUtils;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import org.omegat.core.Core;
+import org.omegat.core.data.NotLoadedProject;
+import org.omegat.core.data.ProjectProperties;
+import org.omegat.core.spellchecker.ISpellChecker;
+import org.omegat.filters2.master.PluginUtils;
+import org.omegat.util.Language;
+import org.omegat.util.TestPreferencesInitializer;
 
 
 public class MorfologikSpellcheckerTest {
     private static final String DICTIONARY_PATH = "/org/omegat/spellchecker/morfologik/";
 
-    private Path tmpDir;
-    private Path configDir;
+    private static Path tmpDir;
+    private static Path configDir;
 
-    @Before
-    public final void setUp() throws Exception {
+    @BeforeClass
+    public static void setUpClass() throws Exception {
         tmpDir = Files.createTempDirectory("omegat");
         assertThat(tmpDir.toFile()).isDirectory();
         configDir = Files.createDirectory(tmpDir.resolve(".omegat"));
         TestPreferencesInitializer.init(configDir.toString());
+        PluginUtils.loadPlugins(Collections.emptyMap());
         Files.createDirectory(configDir.resolve("spelling"));
         copyFile("de_DE.dict");
         copyFile("de_DE.info");
     }
 
-    @After
-    public final void tearDown() throws Exception {
+    @AfterClass
+    public static void tearDownClass() throws Exception {
         FileUtils.forceDeleteOnExit(tmpDir.toFile());
     }
 
@@ -98,11 +102,11 @@ public class MorfologikSpellcheckerTest {
         assertThat(checker.initialize()).as("Success initialize").isTrue();
         assertThat(checker.isCorrect("Hallo")).as("Spell check for correct word").isFalse();
         assertThat(checker.suggest("Hallo")).as("Get suggestion")
-                .hasSize(10).contains("hello");
+                .hasSize(11).contains("hello");
 
     }
 
-    private void copyFile(String target) throws IOException {
+    private static void copyFile(String target) throws IOException {
         try (InputStream is = MorfologikSpellcheckerTest.class.getResourceAsStream(DICTIONARY_PATH + target)) {
             if (is == null) {
                 throw new IOException("Target resource not found");

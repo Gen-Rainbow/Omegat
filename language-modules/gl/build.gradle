@@ -1,0 +1,35 @@
+plugins {
+    id 'org.omegat.module-conventions'
+}
+
+dependencies {
+    compileOnly(project.rootProject)
+    if (providedCoreLibsDir.directory) {
+        compileOnly fileTree(dir: providedCoreLibsDir,
+                includes: ['**/languagetool-core-*.jar', '**/commons-io-*.jar'])
+        implementation fileTree(dir: providedCoreLibsDir,
+                includes: ['**/language-gl-*.jar'])
+    } else {
+        compileOnly(libs.commons.io)
+        compileOnly(libs.languagetool.core)
+        implementation(libs.languagetool.gl) {
+            exclude module: 'languagetool-core'
+        }
+        compileOnly(libs.lucene.analyzers.common)
+    }
+    testImplementation(libs.junit4)
+    testImplementation(libs.assertj)
+    testImplementation(testFixtures(project.rootProject))
+    testImplementation(libs.commons.io)
+    testImplementation(libs.languagetool.core)
+    testRuntimeOnly(libs.json)
+    testRuntimeOnly(libs.protobuf)
+    testImplementation project(":spellchecker:hunspell")
+}
+
+makeModuleTask(loadProperties(file('plugin.properties')))
+
+test {
+    dependsOn tasks.withType(Jar)
+    dependsOn project(":spellchecker:hunspell").tasks.withType(Jar)
+}
