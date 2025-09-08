@@ -33,7 +33,9 @@ package org.omegat.gui.main;
 
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
+import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Window;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -67,6 +69,7 @@ import org.omegat.util.gui.UIDesignManager;
  * @author Alex Buloichik (alex73mail@gmail.com)
  * @author Piotr Kulik
  * @author Aaron Madlon-Kay
+ * @author Hanqin Chen
  */
 public final class MainWindowUI {
 
@@ -125,15 +128,15 @@ public final class MainWindowUI {
                 return;
             }
             switch (eventType) {
-            case LOAD:
-                saveScreenLayout(mainWindow);
-                loadScreenLayout(mainWindow, perProjLayout);
-                didApplyPerProjectLayout = true;
-                break;
-            case SAVE:
-                saveScreenLayout(mainWindow, perProjLayout);
-                break;
-            default:
+                case LOAD:
+                    saveScreenLayout(mainWindow);
+                    loadScreenLayout(mainWindow, perProjLayout);
+                    didApplyPerProjectLayout = true;
+                    break;
+                case SAVE:
+                    saveScreenLayout(mainWindow, perProjLayout);
+                    break;
+                default:
             }
         }
 
@@ -147,11 +150,11 @@ public final class MainWindowUI {
      * Initialize the size of OmegaT window, then load the layout prefs.
      */
     public static void initializeScreenLayout(IMainWindow mainWindow) {
-        /**
-         * (23dec22) Set a reasonable default window size assuming a
-         * standard"pro" laptop resolution of 1920x1080. Smaller screens do not
-         * need to be considered since OmegaT will just use the whole window
-         * size in such cases.
+        /*
+          (23dec22) Set a reasonable default window size assuming a
+          standard"pro" laptop resolution of 1920x1080. Smaller screens do not
+          need to be considered since OmegaT will just use the whole window
+          size in such cases.
          */
 
         // Check the real available space accounting for macOS DOCK, Windows
@@ -223,6 +226,13 @@ public final class MainWindowUI {
      * Stores main window layout to the specified output file.
      */
     private static void saveScreenLayout(MainWindow mainWindow, File uiLayoutFile) {
+        Window window = Core.getMainWindow().getApplicationFrame();
+        Point point = window.getLocation();
+        if (point.x < 0 || point.y < 0) {
+            Log.log("Main window is in full screen or out of screen, skip saving layout!");
+            return;
+        }
+
         try (OutputStream out = new FileOutputStream(uiLayoutFile)) {
             mainWindow.desktop.writeXML(out);
         } catch (Exception ex) {
